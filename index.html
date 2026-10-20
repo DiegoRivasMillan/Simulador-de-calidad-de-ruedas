@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de calidad de ruedas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --color-ink-black: #17191c;
+    --color-paper-white: #ffffff;
+    --color-mist-gray: #f2f2f3;
+    --color-fog-white: #fafafb;
+    --color-slate-gray: #777b86;
+    --color-ash-gray: #979799;
+    --color-smoke-gray: #a3a6af;
+    --color-blush-peach: #fbe1d1;
+    --color-sienna-brown: #5d2a1a;
+    --color-hairline: #ececec;
+
+    --font-signifier: 'Signifier', 'Source Serif 4', ui-serif, Georgia, serif;
+    --font-sohne: 'Sohne', 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    --radius-card: 24px;
+    --radius-elevated: 20px;
+    --radius-small: 16px;
+    --radius-input: 16px;
+    --radius-button: 9999px;
+
+    --shadow-artifact: 0 0 0 1px rgba(4, 23, 43, 0.05), 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--color-paper-white);
+    color: var(--color-ink-black);
+    font-family: var(--font-sohne);
+    font-size: 17px;
+    line-height: 1.35;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  sub { font-size: .68em; line-height: 0; vertical-align: -.28em; }
+
+  /* ---------- Tipografía ---------- */
+  .h-lg {
+    font-family: var(--font-signifier);
+    font-weight: 400;
+    font-size: clamp(32px, 4.4vw, 44px);
+    line-height: 1.25;
+    letter-spacing: -0.66px;
+    margin: 0 0 40px;
+  }
+  .h-lg em { font-style: italic; }
+  .h-sm {
+    font-family: var(--font-sohne);
+    font-weight: 450;
+    font-size: 26px;
+    line-height: 1.18;
+    letter-spacing: -0.23px;
+    margin: 0 0 24px;
+  }
+  .tag { font-size: 14px; line-height: 1.4; color: var(--color-slate-gray); font-weight: 400; }
+
+  /* ---------- Simulador ---------- */
+  .sim { padding: 48px 0 80px; }
+  .sim-grid {
+    display: grid;
+    grid-template-columns: minmax(300px, 380px) 1fr;
+    gap: 24px;
+    align-items: stretch;
+  }
+
+  .card-mist { background: var(--color-mist-gray); border-radius: var(--radius-card); }
+  .panel { padding: 32px 24px; }
+
+  .field { display: block; margin: 0 0 16px; }
+  .field .lbl { display: block; font-size: 15px; font-weight: 450; margin-bottom: 6px; }
+  .input-wrap { position: relative; }
+  .input-wrap input {
+    width: 100%;
+    height: 50px;
+    padding: 0 56px 0 16px;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-input);
+    background: #fff;
+    color: var(--color-ink-black);
+    font: 400 16px var(--font-sohne);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .input-wrap input::placeholder { color: var(--color-smoke-gray); }
+  .input-wrap input:focus { border-color: var(--color-ink-black); box-shadow: 0 0 0 3px rgba(23, 25, 28, .08); }
+  .input-wrap input[aria-invalid="true"] { border-color: var(--color-ink-black); box-shadow: 0 0 0 3px rgba(23, 25, 28, .14); }
+  .unit {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    font-size: 15px; color: var(--color-slate-gray); pointer-events: none;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 100%; height: 50px; margin-top: 8px; padding: 0 20px;
+    background: var(--color-ink-black); color: #fff;
+    border: 1px solid var(--color-ink-black); border-radius: var(--radius-button);
+    font: 400 16px var(--font-sohne); cursor: pointer;
+    transition: background .15s, transform .05s;
+  }
+  .btn:hover { background: #2c2f34; }
+  .btn:active { transform: scale(.99); }
+  .btn:focus-visible { outline: 2px solid var(--color-ink-black); outline-offset: 3px; }
+
+  .error {
+    margin: 14px 0 0; padding: 10px 14px;
+    background: #fff; border: 1px solid var(--color-ink-black); border-radius: var(--radius-small);
+    font-size: 14px; line-height: 1.45;
+  }
+  .note { margin: 16px 0 0; font-size: 14px; line-height: 1.5; color: var(--color-slate-gray); }
+
+  /* Gráfico (artefacto flotante) */
+  .chart-card {
+    background: #fff;
+    border-radius: var(--radius-elevated);
+    box-shadow: var(--shadow-artifact);
+    padding: 24px 20px 16px;
+    display: flex; flex-direction: column; min-width: 0;
+  }
+  .chart-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px 24px; flex-wrap: wrap; margin-bottom: 8px; }
+  .chart-head h2 { margin: 0; font-weight: 450; font-size: 22px; line-height: 1.3; letter-spacing: -0.16px; }
+  .stats { display: flex; gap: 28px; }
+  .stat .v { font-weight: 500; font-size: 20px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 14px; color: var(--color-slate-gray); margin-top: 2px; }
+  .canvas-wrap { position: relative; flex: 1; min-height: 340px; }
+  .canvas-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 12px; font-size: 14px; color: var(--color-slate-gray); }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .sw-line { width: 22px; height: 2px; background: var(--color-sienna-brown); display: inline-block; }
+  .sw-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--color-sienna-brown); display: inline-block; }
+
+  /* ---------- Resultados ---------- */
+  .results { margin-top: 24px; display: grid; gap: 24px; scroll-margin-top: 16px; }
+  .verdict { padding: 36px 28px 28px; }
+  .verdict h3 {
+    font-family: var(--font-signifier); font-weight: 400;
+    font-size: clamp(30px, 4.2vw, 44px); line-height: 1.2; letter-spacing: -0.66px;
+    margin: 8px 0 14px;
+  }
+  .verdict h3 em { font-style: italic; }
+  .lead { font-size: 18px; line-height: 1.45; margin: 0 0 24px; max-width: 80ch; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .kpi { background: #fff; border-radius: var(--radius-small); padding: 16px; }
+  .kpi .v { font-weight: 500; font-size: 20px; line-height: 1.2; }
+  .kpi .l { font-size: 14px; color: var(--color-slate-gray); margin-top: 4px; line-height: 1.35; }
+  .report-title { display: block; margin-bottom: 10px; }
+  .report { background: #fff; border-radius: var(--radius-small); overflow: hidden; }
+  .r-head, .r-row {
+    display: grid; grid-template-columns: 1.4fr 1.3fr 1.1fr 118px;
+    gap: 16px; align-items: center; padding: 14px 20px;
+  }
+  .r-head { font-size: 14px; color: var(--color-slate-gray); border-bottom: 1px solid var(--color-hairline); }
+  .r-row { font-size: 16px; border-bottom: 1px solid var(--color-hairline); }
+  .r-row:last-child { border-bottom: 0; }
+  .r-name { font-weight: 450; }
+  .pill {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 30px; padding: 0 14px; border-radius: var(--radius-button);
+    font-size: 14px; white-space: nowrap;
+  }
+  .pill.ok { background: var(--color-ink-black); color: #fff; border: 1px solid var(--color-ink-black); }
+  .pill.bad { background: transparent; color: var(--color-ink-black); border: 1px solid var(--color-ink-black); }
+
+  .score {
+    background: var(--color-blush-peach); color: var(--color-sienna-brown);
+    border-radius: var(--radius-card); padding: 40px;
+    display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 40px; align-items: start;
+  }
+  .score .tag-b { font-size: 14px; opacity: .85; }
+  .score .big {
+    font-family: var(--font-signifier); font-weight: 400;
+    font-size: clamp(64px, 9vw, 90px); line-height: 1.1; letter-spacing: -2.25px; margin-top: 8px;
+  }
+  .score .big small { font-size: .36em; letter-spacing: -.4px; margin-left: 8px; }
+  .score .msg { font-weight: 450; font-size: 20px; line-height: 1.4; margin: 0 0 20px; }
+  .score h4 { margin: 0; font-weight: 450; font-size: 16px; }
+  .score ul { list-style: none; margin: 8px 0 0; padding: 0; }
+  .score li { padding: 12px 0; border-top: 1px solid rgba(93, 42, 26, .22); font-size: 16px; line-height: 1.5; font-weight: 430; }
+  .score .foot { margin: 14px 0 0; font-size: 14px; line-height: 1.5; opacity: .9; }
+
+  /* ---------- Fórmulas ---------- */
+  .band-fog { background: var(--color-fog-white); padding: 80px 0; }
+  .formula-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .formula { background: var(--color-mist-gray); border-radius: var(--radius-card); padding: 28px 24px; }
+  .eq {
+    font-family: var(--font-signifier); font-size: 22px; line-height: 1.55;
+    margin: 10px 0 8px; overflow-wrap: anywhere;
+  }
+  .eq .line { display: block; }
+  .eq i { font-style: italic; }
+  .eq sub { font-style: normal; }
+  .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 .2em; font-size: .95em; line-height: 1.3; }
+  .frac > span:first-child { border-bottom: 1px solid currentColor; padding: 0 .3em .05em; }
+  .frac > span:last-child { padding: .05em .3em 0; }
+  .formula .nt { margin: 0; font-size: 15px; line-height: 1.5; color: var(--color-slate-gray); }
+
+  /* ---------- Por qué funciona ---------- */
+  .why { padding: 80px 0; }
+  .why-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; }
+  .why-cols p { margin: 0; font-size: 18px; line-height: 1.55; font-weight: 430; }
+
+  /* ---------- Línea divisora e integrantes ---------- */
+  .divider { border: 0; border-top: 1px solid var(--color-ink-black); margin: 0; }
+  .team { padding: 40px 0 72px; }
+  .team h2 { margin: 0 0 16px; font-weight: 450; font-size: 26px; line-height: 1.18; letter-spacing: -0.23px; }
+  .team ul { list-style: none; margin: 0; padding: 0; }
+  .team li { font-size: 17px; line-height: 1.8; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 960px) {
+    .sim-grid { grid-template-columns: 1fr; }
+    .formula-grid, .why-cols { grid-template-columns: 1fr; }
+    .score { grid-template-columns: 1fr; gap: 24px; padding: 32px 24px; }
+  }
+  @media (max-width: 720px) {
+    .container { padding: 0 16px; }
+    .sim { padding: 24px 0 56px; }
+    .band-fog, .why { padding: 56px 0; }
+    .stats { gap: 20px; }
+    .canvas-wrap { min-height: 300px; }
+    .r-head { display: none; }
+    .r-row { grid-template-columns: 1fr auto; gap: 6px 12px; padding: 14px 16px; }
+    .r-name { grid-column: 1; }
+    .r-state { grid-column: 2; grid-row: 1; }
+    .r-req, .r-val { grid-column: 1 / -1; font-size: 15px; color: var(--color-slate-gray); }
+    .r-req::before { content: 'Criterio: '; }
+    .r-val::before { content: 'Resultado: '; }
+    .verdict { padding: 28px 18px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="sim">
+    <div class="container">
+      <div class="sim-grid">
+
+        <!-- Datos de la rueda (izquierda) -->
+        <form class="card-mist panel" id="form" novalidate autocomplete="off">
+          <h2 class="h-sm">Datos de la rueda</h2>
+
+          <label class="field">
+            <span class="lbl">Masa de la rueda</span>
+            <span class="input-wrap"><input id="masa" type="text" inputmode="decimal" placeholder="Ej. 18"><span class="unit">kg</span></span>
+          </label>
+          <label class="field">
+            <span class="lbl">Presión de la rueda</span>
+            <span class="input-wrap"><input id="presion" type="text" inputmode="decimal" placeholder="Ej. 32"><span class="unit">psi</span></span>
+          </label>
+          <label class="field">
+            <span class="lbl">Radio de la rueda</span>
+            <span class="input-wrap"><input id="radio" type="text" inputmode="decimal" placeholder="Ej. 0,32"><span class="unit">m</span></span>
+          </label>
+          <label class="field">
+            <span class="lbl">Coeficiente de fricción</span>
+            <span class="input-wrap"><input id="friccion" type="text" inputmode="decimal" placeholder="Ej. 0,85"><span class="unit">&nbsp;</span></span>
+          </label>
+          <label class="field">
+            <span class="lbl">Longitud de la pendiente</span>
+            <span class="input-wrap"><input id="longitud" type="text" inputmode="decimal" placeholder="Ej. 50"><span class="unit">m</span></span>
+          </label>
+
+          <button class="btn" type="submit" id="btn">Iniciar simulación</button>
+          <p class="error" id="error" role="alert" hidden></p>
+          <p class="note">Condiciones fijas: gravedad 9,81 m/s², velocidad inicial 0 m/s y pendiente de 15°.</p>
+        </form>
+
+        <!-- Gráfico de la prueba (derecha) -->
+        <div class="chart-card">
+          <div class="chart-head">
+            <h2>Trayectoria de la rueda</h2>
+            <div class="stats" aria-live="off">
+              <div class="stat"><div class="v" id="st-t">0,00 s</div><div class="l">Tiempo</div></div>
+              <div class="stat"><div class="v" id="st-v">0,00 m/s</div><div class="l">Velocidad</div></div>
+              <div class="stat"><div class="v" id="st-s">0,00 m</div><div class="l">Distancia</div></div>
+            </div>
+          </div>
+          <div class="canvas-wrap" id="wrap">
+            <canvas id="canvas" role="img" aria-label="Gráfico de la trayectoria de la rueda al descender por la pendiente"></canvas>
+          </div>
+          <div class="legend">
+            <span><i class="sw-line"></i>Trayectoria del centro de la rueda</span>
+            <span><i class="sw-dot"></i>Posición cada 10 % del tiempo</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resultados (aparecen al terminar la simulación) -->
+      <div class="results" id="resultados" role="region" aria-label="Resultados de la prueba" aria-live="polite" hidden></div>
+    </div>
+  </section>
+
+  <!-- Fórmulas -->
+  <section class="band-fog" id="formulas">
+    <div class="container">
+      <h2 class="h-lg">Fórmulas que usa el <em>simulador</em></h2>
+      <div class="formula-grid">
+
+        <article class="formula">
+          <span class="tag">Condiciones fijas</span>
+          <p class="eq"><span class="line"><i>g</i> = 9,81 m/s²</span><span class="line"><i>v</i><sub>0</sub> = 0 m/s</span><span class="line"><i>θ</i> = 15°</span></p>
+          <p class="nt">Se mantienen iguales en cada prueba para que el resultado dependa solo de los datos de la rueda.</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Conversión de presión</span>
+          <p class="eq"><i>P</i><sub>kPa</sub> = <i>P</i><sub>psi</sub> · 6,895</p>
+          <p class="nt">Convierte la presión ingresada a kilopascales.</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Fuerza normal</span>
+          <p class="eq"><i>N</i> = <i>m</i> · <i>g</i> · cos <i>θ</i></p>
+          <p class="nt">Fuerza con la que la pendiente empuja a la rueda; fija el rozamiento máximo disponible (<i>μ</i> · <i>N</i>).</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Factor de contacto por presión</span>
+          <p class="eq">
+            <span class="line"><i>f</i><sub>P</sub> = 1 − 0,010 · (28 − <i>P</i>)  si <i>P</i> &lt; 28 psi</span>
+            <span class="line"><i>f</i><sub>P</sub> = 1 − 0,015 · (<i>P</i> − 36)  si <i>P</i> &gt; 36 psi</span>
+            <span class="line"><i>f</i><sub>P</sub> = 1  si 28 ≤ <i>P</i> ≤ 36 psi</span>
+          </p>
+          <p class="nt">Fuera del rango recomendado el neumático pierde adherencia efectiva (valor mínimo 0,5).</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Fricción efectiva</span>
+          <p class="eq"><i>μ</i><sub>ef</sub> = <i>μ</i> · <i>f</i><sub>P</sub></p>
+          <p class="nt">Coeficiente de fricción ingresado, corregido por el efecto de la presión.</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Resistencia a la rodadura</span>
+          <p class="eq"><i>C</i><sub>rr</sub> = 0,010 · √(220 / <i>P</i><sub>kPa</sub>)</p>
+          <p class="nt">0,010 es el valor de referencia a 220 kPa (≈ 32 psi); a menor presión, mayor resistencia.</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Momento de inercia (neumático como anillo)</span>
+          <p class="eq"><i>I</i> = <i>m</i> · <i>r</i>²</p>
+          <p class="nt">Mide cuánta energía se invierte en hacer girar la rueda.</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Fricción mínima para rodar sin deslizar</span>
+          <p class="eq"><i>μ</i><sub>mín</sub> = tan <i>θ</i> · <span class="frac"><span><i>I</i></span><span><i>I</i> + <i>m</i>·<i>r</i>²</span></span> = <span class="frac"><span>tan <i>θ</i></span><span>2</span></span></p>
+          <p class="nt">Si <i>μ</i><sub>ef</sub> ≥ <i>μ</i><sub>mín</sub> la rueda rueda sin deslizar; si no, desliza mientras gira.</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Aceleración rodando sin deslizar</span>
+          <p class="eq"><i>a</i> = <span class="frac"><span><i>g</i>·(sin <i>θ</i> − <i>C</i><sub>rr</sub>·cos <i>θ</i>)</span><span>1 + <i>I</i> / (<i>m</i>·<i>r</i>²)</span></span></p>
+          <p class="nt">Segunda ley de Newton para traslación y rotación; la resistencia a la rodadura resta fuerza motriz.</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Aceleración con deslizamiento</span>
+          <p class="eq"><span class="line"><i>a</i> = <i>g</i> · (sin <i>θ</i> − <i>μ</i><sub>ef</sub> · cos <i>θ</i>)</span><span class="line"><i>α</i> = <span class="frac"><span><i>μ</i><sub>ef</sub> · <i>g</i> · cos <i>θ</i></span><span><i>r</i></span></span></span></p>
+          <p class="nt">Se usa cuando <i>μ</i><sub>ef</sub> &lt; <i>μ</i><sub>mín</sub>; <i>α</i> es la aceleración angular de la rueda.</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Cinemática (<i>v</i><sub>0</sub> = 0)</span>
+          <p class="eq"><span class="line"><i>t</i> = √(2·<i>L</i> / <i>a</i>)</span><span class="line"><i>v</i> = <i>a</i> · <i>t</i></span><span class="line"><i>s</i>(<i>t</i>) = ½ · <i>a</i> · <i>t</i>²</span></p>
+          <p class="nt">Tiempo de descenso, velocidad final y posición a lo largo de la pendiente de longitud <i>L</i>.</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Velocidad angular final</span>
+          <p class="eq"><span class="line"><i>ω</i> = <i>α</i> · <i>t</i>   (= <i>v</i> / <i>r</i> si rueda sin deslizar)</span><span class="line"><i>n</i> = <i>ω</i> · 60 / (2π)   [rpm]</span></p>
+          <p class="nt">Revoluciones por minuto con las que gira la rueda al llegar al final de la pendiente.</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Eficiencia de rodadura</span>
+          <p class="eq"><i>η</i> = 1 − <span class="frac"><span><i>C</i><sub>rr</sub></span><span>tan <i>θ</i></span></span></p>
+          <p class="nt">Fracción de la fuerza motriz que no se pierde por la deformación del neumático.</p>
+        </article>
+
+        <article class="formula">
+          <span class="tag">Puntaje de calidad (1 a 20)</span>
+          <p class="eq"><span class="line">Puntaje = 20 · Σ (<i>w</i><sub>i</sub> · <i>s</i><sub>i</sub>)</span><span class="line"><i>s</i><sub>i</sub> = 1 − <span class="frac"><span><i>d</i></span><span>0,5 · límite</span></span></span></p>
+          <p class="nt">Cada una de las 7 condiciones recibe <i>s</i><sub>i</sub> entre 0 y 1: vale 1 si cumple y baja según la distancia <i>d</i> al límite incumplido (0 al alejarse la mitad del límite). Pesos <i>w</i><sub>i</sub>: presión 20 %, fricción 20 %, eficiencia 20 %, rodadura sin deslizar 15 %, pendiente 10 %, masa 8 % y radio 7 %. Si alguna condición no cumple, el máximo es 19.</p>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Por qué funciona -->
+  <section class="why">
+    <div class="container">
+      <h2 class="h-lg">¿Por qué esta prueba permite comprobar la <em>calidad</em> de una rueda?</h2>
+      <div class="why-cols">
+        <p>Una rueda que desciende por una pendiente es un ensayo de rodadura libre: la única fuerza que la pone en movimiento es su propio peso, y las condiciones (gravedad, ángulo de la pendiente y partida desde el reposo) son idénticas para cualquier neumático. Esto vuelve la prueba repetible y comparable: si dos ruedas se ensayan igual y llegan con tiempos, velocidades o aceleraciones distintas, la diferencia proviene de la rueda y no del ensayo. Además, el movimiento obedece leyes simples (segunda ley de Newton, rodadura y conservación de la energía), de modo que cada resultado puede compararse de forma objetiva con un criterio de aceptación documentado.</p>
+        <p>Cada dato de la rueda deja una huella medible en el resultado. La presión controla la resistencia a la rodadura y el contacto con el suelo, por lo que un neumático desinflado o sobreinflado pierde eficiencia o adherencia; el coeficiente de fricción define si la rueda rueda con agarre o desliza, algo directamente ligado a la tracción y la frenada; y la masa y el radio fijan la inercia y la velocidad angular, que influyen en el consumo y en la respuesta de la suspensión. Detectar estas desviaciones en un ensayo rápido y económico permite rechazar o corregir ruedas antes de pruebas más costosas en carretera, aunque, al ser un modelo simplificado, funciona como filtro de calidad y no reemplaza ensayos normativos como los de durabilidad o resistencia a alta velocidad.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="container"><hr class="divider"></div>
+
+  <footer class="container team">
+    <h2>Integrantes:</h2>
+    <ul>
+      <li>NEYRA TENORIO, MAURICIO ADRIANO - U25314332</li>
+      <li>CARRASCO ALVIS, DENNIS JOSE - U25216574</li>
+      <li>CURIOSO VERGARA, RENATO GESU - U25314344</li>
+      <li>CHAVEZ RAMIREZ, LUCIANA JAZMIN - U25228092</li>
+      <li>RIVAS MILLAN, DIEGO RICARDO - U25228254</li>
+    </ul>
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================= Constantes del ensayo ================= */
+  const G = 9.81;                         // gravedad fija (m/s²)
+  const THETA = 15 * Math.PI / 180;       // pendiente fija
+  const SIN = Math.sin(THETA), COS = Math.cos(THETA), TAN = Math.tan(THETA);
+  const MU_MIN = TAN / 2;                 // anillo: I/(I+m r²) = 1/2
+  const BROWN = '#5d2a1a', INK = '#17191c';
+  const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /* ================= Utilidades ================= */
+  const fmt = (n, d) => n.toFixed(d).replace('.', ',');
+  const num = (n, d) => String(parseFloat(n.toFixed(d === undefined ? 3 : d))).replace('.', ',');
+  const $ = (id) => document.getElementById(id);
+
+  const CAMPOS = [
+    { id: 'masa',     key: 'm',  nombre: 'Masa de la rueda',         unidad: 'kg',  min: 0.5,  max: 200  },
+    { id: 'presion',  key: 'P',  nombre: 'Presión de la rueda',      unidad: 'psi', min: 1,    max: 150  },
+    { id: 'radio',    key: 'r',  nombre: 'Radio de la rueda',        unidad: 'm',   min: 0.05, max: 1.5  },
+    { id: 'friccion', key: 'mu', nombre: 'Coeficiente de fricción',  unidad: '',    min: 0.01, max: 2.5  },
+    { id: 'longitud', key: 'L',  nombre: 'Longitud de la pendiente', unidad: 'm',   min: 1,    max: 1000 }
+  ];
+
+  /* ================= Lectura y validación ================= */
+  function leerDatos() {
+    const datos = {};
+    let primero = null;
+    CAMPOS.forEach((c) => {
+      const el = $(c.id);
+      el.removeAttribute('aria-invalid');
+      const txt = el.value.trim().replace(',', '.');
+      const v = txt === '' ? NaN : Number(txt);
+      if (!isFinite(v) || v < c.min || v > c.max) {
+        el.setAttribute('aria-invalid', 'true');
+        if (!primero) {
+          primero = {
+            el: el,
+            msg: 'Revisa los datos. ' + c.nombre + ': ingresa un valor numérico entre ' + num(c.min) + ' y ' + num(c.max) + (c.unidad ? ' ' + c.unidad : '') + '.'
+          };
+        }
+      } else {
+        datos[c.key] = v;
+      }
+    });
+    return primero ? { error: primero } : { datos: datos };
+  }
+
+  /* ================= Modelo físico y criterios ================= */
+  function rango(v, lo, hi) {
+    if (lo != null && v < lo) return { ok: false, lado: 'bajo', s: Math.max(0, 1 - (lo - v) / (0.5 * lo)) };
+    if (hi != null && v > hi) return { ok: false, lado: 'alto', s: Math.max(0, 1 - (v - hi) / (0.5 * hi)) };
+    return { ok: true, lado: null, s: 1 };
+  }
+
+  function calcular(d) {
+    const m = d.m, P = d.P, r = d.r, mu = d.mu, L = d.L;
+    const Pk = P * 6.895;
+    const crr = 0.010 * Math.sqrt(220 / Pk);
+    const fP = P < 28 ? Math.max(0.5, 1 - 0.010 * (28 - P))
+             : P > 36 ? Math.max(0.5, 1 - 0.015 * (P - 36)) : 1;
+    const muEf = mu * fP;
+    const I = m * r * r;
+    const rueda = muEf >= MU_MIN;            // rueda sin deslizar
+    let a, alpha;
+    if (rueda) { a = G * (SIN - crr * COS) / 2; alpha = a / r; }
+    else       { a = G * (SIN - muEf * COS);    alpha = muEf * G * COS / r; }
+    const T = Math.sqrt(2 * L / a);
+    const v = a * T;
+    const omega = alpha * T;
+    const rpm = omega * 60 / (2 * Math.PI);
+    const eta = 1 - crr / TAN;
+
+    const crit = [
+      { id: 'P',   dato: true,  nombre: 'Presión de inflado',          req: '28 – 36 psi',      val: num(P, 1) + ' psi',      w: 0.20, r: rango(P, 28, 36) },
+      { id: 'm',   dato: true,  nombre: 'Masa de la rueda',            req: '10 – 30 kg',       val: num(m, 2) + ' kg',       w: 0.08, r: rango(m, 10, 30) },
+      { id: 'r',   dato: true,  nombre: 'Radio de la rueda',           req: '0,28 – 0,40 m',    val: num(r, 3) + ' m',        w: 0.07, r: rango(r, 0.28, 0.40) },
+      { id: 'mu',  dato: true,  nombre: 'Coeficiente de fricción (μ)', req: '0,70 – 1,10',      val: num(mu, 3),              w: 0.20, r: rango(mu, 0.70, 1.10) },
+      { id: 'L',   dato: true,  nombre: 'Longitud de la pendiente',    req: '10 – 200 m',       val: num(L, 1) + ' m',        w: 0.10, r: rango(L, 10, 200) },
+      { id: 'rod', dato: false, nombre: 'Rodadura sin deslizamiento',  req: 'μ<sub>ef</sub> ≥ μ<sub>mín</sub> (' + fmt(MU_MIN, 3) + ')', val: 'μ<sub>ef</sub> = ' + fmt(muEf, 3), w: 0.15, r: rango(muEf, MU_MIN, null) },
+      { id: 'eta', dato: false, nombre: 'Eficiencia de rodadura',      req: 'η ≥ 95 %',         val: fmt(eta * 100, 1) + ' %', w: 0.20, r: rango(eta, 0.95, null) }
+    ];
+    const total = crit.reduce((acc, c) => acc + c.w * c.r.s, 0);
+    const fallas = crit.filter((c) => !c.r.ok).length;
+    let puntaje = Math.round(20 * total);
+    if (fallas > 0) puntaje = Math.min(puntaje, 19);
+    puntaje = Math.max(1, Math.min(20, puntaje));
+
+    return { m: m, P: P, r: r, mu: mu, L: L, Pk: Pk, crr: crr, fP: fP, muEf: muEf, I: I,
+             rueda: rueda, a: a, alpha: alpha, T: T, v: v, rpm: rpm, eta: eta,
+             crit: crit, fallas: fallas, puntaje: puntaje };
+  }
+
+  function veredicto(S) {
+    if (S.fallas === 0) return { titulo: 'La calidad de la rueda fue <em>óptima</em> en esta prueba.', etiqueta: 'óptima' };
+    if (S.puntaje >= 17) return { titulo: 'La calidad de la rueda fue <em>aceptable</em>, con observaciones.', etiqueta: 'aceptable' };
+    if (S.puntaje >= 11) return { titulo: 'La calidad de la rueda fue <em>deficiente</em> en esta prueba.', etiqueta: 'deficiente' };
+    return { titulo: 'La rueda <em>no es conforme</em> con los criterios de aceptación.', etiqueta: 'no conforme' };
+  }
+
+  function causas(S) {
+    const out = [];
+    const c = {};
+    S.crit.forEach((x) => { c[x.id] = x; });
+    if (!c.P.r.ok) {
+      out.push(c.P.r.lado === 'bajo'
+        ? '<strong>Presión (' + num(S.P, 1) + ' psi):</strong> está por debajo de 28 psi. El neumático se deforma más, la resistencia a la rodadura sube (C<sub>rr</sub> = ' + fmt(S.crr, 4) + ') y la adherencia efectiva baja (μ<sub>ef</sub> = ' + fmt(S.muEf, 3) + ').'
+        : '<strong>Presión (' + num(S.P, 1) + ' psi):</strong> supera 36 psi. El área de contacto se reduce y la adherencia efectiva baja a μ<sub>ef</sub> = ' + fmt(S.muEf, 3) + '.');
+    }
+    if (!c.m.r.ok) {
+      out.push(c.m.r.lado === 'bajo'
+        ? '<strong>Masa (' + num(S.m, 2) + ' kg):</strong> es menor a 10 kg, menos de lo esperado para un conjunto rueda-neumático de vehículo liviano; sugiere falta de material o refuerzos, o un dato mal medido.'
+        : '<strong>Masa (' + num(S.m, 2) + ' kg):</strong> supera 30 kg. La inercia (I = m·r² = ' + fmt(S.I, 2) + ' kg·m²) y la masa no suspendida aumentan, lo que exige más energía para acelerar y frenar y empeora la respuesta de la suspensión.');
+    }
+    if (!c.r.r.ok) {
+      out.push(c.r.r.lado === 'bajo'
+        ? '<strong>Radio (' + num(S.r, 3) + ' m):</strong> es menor a 0,28 m; no corresponde a una rueda de vehículo liviano y su mayor velocidad angular (' + Math.round(S.rpm) + ' rpm al final) acelera el desgaste y altera el diámetro de rodadura.'
+        : '<strong>Radio (' + num(S.r, 3) + ' m):</strong> supera 0,40 m; el diámetro de rodadura es excesivo para un vehículo liviano y descalibra el velocímetro y la relación de transmisión.');
+    }
+    if (!c.mu.r.ok) {
+      out.push(c.mu.r.lado === 'bajo'
+        ? '<strong>Fricción (μ = ' + num(S.mu, 3) + '):</strong> es inferior a 0,70, por lo que hay poco agarre sobre asfalto seco y se limitan la tracción y la frenada' + (S.rueda ? '.' : '; además la rueda desliza en lugar de rodar.')
+        : '<strong>Fricción (μ = ' + num(S.mu, 3) + '):</strong> supera 1,10, un valor poco verosímil para un neumático de calle sobre asfalto seco; revisa la medición o el compuesto del neumático.');
+    }
+    if (!c.L.r.ok) {
+      out.push(c.L.r.lado === 'bajo'
+        ? '<strong>Longitud de pendiente (' + num(S.L, 1) + ' m):</strong> es menor a 10 m; la rueda no recorre un tramo representativo y el resultado pierde confiabilidad.'
+        : '<strong>Longitud de pendiente (' + num(S.L, 1) + ' m):</strong> supera 200 m; la rueda llega a ' + fmt(S.v * 3.6, 1) + ' km/h, por encima de las condiciones representativas del ensayo.');
+    }
+    if (!c.rod.r.ok) {
+      out.push('<strong>Deslizamiento:</strong> la fricción efectiva (μ<sub>ef</sub> = ' + fmt(S.muEf, 3) + ') no alcanza el mínimo para rodar (μ<sub>mín</sub> = ' + fmt(MU_MIN, 3) + '). Proviene del coeficiente de fricción ingresado y/o de la presión (factor de contacto f<sub>P</sub> = ' + fmt(S.fP, 2) + ').');
+    }
+    if (!c.eta.r.ok) {
+      out.push('<strong>Eficiencia de rodadura (η = ' + fmt(S.eta * 100, 1) + ' %):</strong> las pérdidas por rodadura superan el 5 %. Se originan en la presión de ' + num(S.P, 1) + ' psi, que produce C<sub>rr</sub> = ' + fmt(S.crr, 4) + '.');
+    }
+    return out;
+  }
+
+  /* ================= Resultados ================= */
+  function kpi(v, l) { return '<div class="kpi"><div class="v">' + v + '</div><div class="l">' + l + '</div></div>'; }
+
+  function mostrarResultados(S) {
+    const V = veredicto(S);
+    const nOk = S.crit.length - S.fallas;
+    const lead = 'Con una pendiente de ' + num(S.L, 1) + ' m, la rueda descendió en ' + fmt(S.T, 2) + ' s y llegó con ' + fmt(S.v, 2) + ' m/s (' + fmt(S.v * 3.6, 1) + ' km/h) '
+      + (S.rueda ? 'rodando sin deslizar' : 'deslizando mientras giraba')
+      + ', con una aceleración de ' + fmt(S.a, 2) + ' m/s². Cumple ' + nOk + ' de ' + S.crit.length + ' condiciones del criterio de aceptación.';
+
+    const filas = S.crit.map((c) =>
+      '<div class="r-row">'
+      + '<span class="r-name">' + c.nombre + '</span>'
+      + '<span class="r-req">' + c.req + '</span>'
+      + '<span class="r-val">' + c.val + '</span>'
+      + '<span class="r-state">' + (c.r.ok ? '<span class="pill ok">✓ Cumple</span>' : '<span class="pill bad">✕ No cumple</span>') + '</span>'
+      + '</div>').join('');
+
+    const lista = causas(S);
+    const datosOk = S.crit.filter((c) => c.dato && c.r.ok).map((c) => ({ P: 'presión', m: 'masa', r: 'radio', mu: 'fricción', L: 'longitud de pendiente' }[c.id]));
+    let bloqueCausas;
+    if (S.fallas === 0) {
+      bloqueCausas = '<h4>Qué explica el resultado</h4><ul><li>Ningún dato presenta desviaciones: presión, masa, radio, fricción y longitud de pendiente cumplen los criterios de aceptación.</li></ul>';
+    } else {
+      bloqueCausas = '<h4>Qué origina el bajo rendimiento en tus datos</h4><ul>' + lista.map((t) => '<li>' + t + '</li>').join('') + '</ul>'
+        + (datosOk.length ? '<p class="foot">Sin observaciones en: ' + datosOk.join(', ') + '.</p>' : '');
+    }
+
+    $('resultados').innerHTML =
+      '<div class="card-mist verdict">'
+      + '<span class="tag">Resultado de la prueba</span>'
+      + '<h3>' + V.titulo + '</h3>'
+      + '<p class="lead">' + lead + '</p>'
+      + '<div class="kpis">'
+      + kpi(fmt(S.a, 2) + ' m/s²', 'Aceleración')
+      + kpi(fmt(S.T, 2) + ' s', 'Tiempo de descenso')
+      + kpi(fmt(S.v, 2) + ' m/s', 'Velocidad final (' + fmt(S.v * 3.6, 1) + ' km/h)')
+      + kpi(Math.round(S.rpm) + ' rpm', 'Velocidad angular final')
+      + kpi(S.rueda ? 'Sin deslizar' : 'Con deslizamiento', 'Régimen de movimiento')
+      + kpi(fmt(S.crr, 4), 'Resistencia a la rodadura C<sub>rr</sub>')
+      + '</div>'
+      + '<span class="tag report-title">Informe de condiciones: cumple ' + nOk + ' · no cumple ' + S.fallas + '</span>'
+      + '<div class="report"><div class="r-head"><span>Condición</span><span>Criterio de aceptación</span><span>Resultado</span><span>Estado</span></div>' + filas + '</div>'
+      + '</div>'
+      + '<div class="score">'
+      + '<div><span class="tag-b">Puntaje de calidad</span><div class="big">' + S.puntaje + '<small>/ 20</small></div></div>'
+      + '<div>'
+      + '<p class="msg">Confirmación: la rueda ensayada obtuvo ' + S.puntaje + ' de 20 puntos (calidad ' + V.etiqueta + ') según los criterios de aceptación de la prueba.</p>'
+      + bloqueCausas
+      + '<p class="foot">Las condiciones fijas (g = 9,81 m/s², v<sub>0</sub> = 0 m/s y θ = 15°) son iguales para toda rueda, por lo que no influyen en las diferencias de este resultado.</p>'
+      + '</div></div>';
+
+    const res = $('resultados');
+    res.hidden = false;
+    res.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  function ocultarResultados() {
+    const res = $('resultados');
+    res.hidden = true;
+    res.innerHTML = '';
+  }
+
+  /* ================= Gráfico (canvas) ================= */
+  const wrap = $('wrap'), cvs = $('canvas'), ctx = cvs.getContext('2d');
+  let escena = { L: 50, a: 1, T: Math.sqrt(100), s: 0, phi: 0, idle: true };
+
+  function ajustarCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    cvs.width = Math.max(1, Math.round(w * dpr));
+    cvs.height = Math.max(1, Math.round(h * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function paso(rango, n) {
+    const raw = rango / n;
+    const p = Math.pow(10, Math.floor(Math.log10(raw)));
+    const f = raw / p;
+    return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+  }
+  const tk = (n) => String(parseFloat(n.toFixed(2))).replace('.', ',');
+
+  function dibujarRueda(cx, cy, R, phi) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(phi);
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, 2 * Math.PI); ctx.fillStyle = INK; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, R * 0.64, 0, 2 * Math.PI); ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1.5, R * 0.1); ctx.lineCap = 'round';
+    for (let i = 0; i < 5; i++) {
+      const ang = i * 2 * Math.PI / 5;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(ang) * R * 0.62, Math.sin(ang) * R * 0.62); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(0, 0, R * 0.15, 0, 2 * Math.PI); ctx.fillStyle = INK; ctx.fill();
+    ctx.beginPath(); ctx.arc(R * 0.82, 0, Math.max(1.6, R * 0.07), 0, 2 * Math.PI); ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.restore();
+  }
+
+  function dibujar(sc) {
+    const W = wrap.clientWidth, H = wrap.clientHeight;
+    if (!W || !H) return;
+    ctx.clearRect(0, 0, W, H);
+
+    const padL = 62, padR = 20, padT = 22, padB = 46;
+    const pw = W - padL - padR, ph = H - padT - padB;
+    const R = Math.max(11, Math.min(19, ph * 0.07));
+    const X = sc.L * COS, Y = sc.L * SIN;
+    const uw = pw - 2.4 * R;
+    const k = Math.min(uw / X, (ph - 2.3 * R) / Y);
+    const x0 = padL + 1.2 * R + (uw - X * k) / 2;
+    const yB = padT + ph, yT = yB - Y * k;
+    const FONT = '12px Inter, system-ui, sans-serif';
+
+    // Pendiente
+    ctx.beginPath(); ctx.moveTo(x0, yT); ctx.lineTo(x0 + X * k, yB); ctx.lineTo(x0, yB); ctx.closePath();
+    ctx.fillStyle = '#f2f2f3'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x0, yB); ctx.lineTo(x0 + X * k, yB);
+    ctx.strokeStyle = '#d6d6d9'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x0, yB); ctx.lineTo(x0, yT);
+    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x0, yT); ctx.lineTo(x0 + X * k, yB);
+    ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke();
+
+    // Ejes y marcas
+    ctx.font = FONT; ctx.fillStyle = '#777b86'; ctx.strokeStyle = '#a3a6af'; ctx.lineWidth = 1;
+    const sx = paso(X, Math.max(2, Math.floor(pw / 90)));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    for (let v = 0; v <= X + 1e-9; v += sx) {
+      const px = x0 + v * k;
+      ctx.beginPath(); ctx.moveTo(px, yB); ctx.lineTo(px, yB + 4); ctx.stroke();
+      ctx.fillText(tk(v), px, yB + 8);
+    }
+    const sy = paso(Y, Math.max(2, Math.floor(ph / 60)));
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let v = 0; v <= Y + 1e-9; v += sy) {
+      const py = yB - v * k;
+      ctx.beginPath(); ctx.moveTo(x0 - 4, py); ctx.lineTo(x0, py); ctx.stroke();
+      ctx.fillText(tk(v), x0 - 8, py);
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('Distancia horizontal (m)', x0 + X * k / 2, H - 6);
+    ctx.save(); ctx.translate(12, padT + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('Altura (m)', 0, 0); ctx.restore();
+
+    // Longitud sobre la pendiente
+    ctx.save();
+    const mx = x0 + (X * k) / 2 - SIN * 16 * -1 * -1, my = yT + (Y * k) / 2;
+    ctx.translate(mx - SIN * 16, my + COS * 16 + 0);
+    ctx.rotate(THETA);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('L = ' + num(sc.L, 1) + ' m', 0, 0);
+    ctx.restore();
+
+    // Trayectoria del centro de la rueda
+    const ctr = (s) => ({ x: x0 + s * COS * k + SIN * R, y: yT + s * SIN * k - COS * R });
+    const c0 = ctr(0), c1 = ctr(sc.L), cs = ctr(sc.s);
+    ctx.save();
+    ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(93,42,26,.35)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(c0.x, c0.y); ctx.lineTo(c1.x, c1.y); ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle = BROWN; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(c0.x, c0.y); ctx.lineTo(cs.x, cs.y); ctx.stroke();
+
+    for (let i = 0; i <= 10; i++) {
+      const sd = 0.5 * sc.a * Math.pow(sc.T * i / 10, 2);
+      const c = ctr(sd);
+      ctx.beginPath(); ctx.arc(c.x, c.y, 3.5, 0, 2 * Math.PI);
+      if (sd <= sc.s + 1e-9) { ctx.fillStyle = BROWN; ctx.fill(); }
+      else { ctx.strokeStyle = 'rgba(93,42,26,.45)'; ctx.lineWidth = 1.5; ctx.stroke(); }
+    }
+
+    dibujarRueda(cs.x, cs.y, R, sc.phi);
+
+    if (sc.idle) {
+      ctx.font = '14px Inter, system-ui, sans-serif'; ctx.fillStyle = '#777b86';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText('Presiona «Iniciar simulación»', W - padR, padT + 14);
+    }
+  }
+
+  /* ================= Simulación ================= */
+  let raf = 0;
+
+  function actualizarStats(t, v, s) {
+    $('st-t').textContent = fmt(t, 2) + ' s';
+    $('st-v').textContent = fmt(v, 2) + ' m/s';
+    $('st-s').textContent = fmt(s, 2) + ' m';
+  }
+
+  function iniciar(d) {
+    cancelAnimationFrame(raf);
+    ocultarResultados();
+    const S = calcular(d);
+    const dur = reduceMotion ? 0 : Math.min(9, Math.max(4, S.T)) * 1000;
+
+    function cuadro(p) {
+      const t = p * S.T;
+      const s = Math.min(S.L, 0.5 * S.a * t * t);
+      escena = { L: S.L, a: S.a, T: S.T, s: s, phi: 0.5 * S.alpha * t * t, idle: false };
+      dibujar(escena);
+      actualizarStats(t, S.a * t, s);
+    }
+    function terminar() {
+      cuadro(1);
+      cvs.setAttribute('aria-label', 'Trayectoria de la rueda: descendió ' + num(S.L, 1) + ' m de pendiente en ' + fmt(S.T, 2) + ' segundos');
+      mostrarResultados(S);
+    }
+
+    if (dur === 0) { terminar(); return; }
+    const t0 = performance.now();
+    (function bucle(now) {
+      const p = Math.min(1, (now - t0) / dur);
+      if (p < 1) { cuadro(p); raf = requestAnimationFrame(bucle); }
+      else { terminar(); }
+    })(t0);
+  }
+
+  /* ================= Eventos ================= */
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const err = $('error');
+    const lectura = leerDatos();
+    if (lectura.error) {
+      err.textContent = lectura.error.msg;
+      err.hidden = false;
+      lectura.error.el.focus();
+      return;
+    }
+    err.hidden = true;
+    iniciar(lectura.datos);
+  });
+
+  CAMPOS.forEach((c) => {
+    $(c.id).addEventListener('input', function () { this.removeAttribute('aria-invalid'); });
+  });
+
+  if (window.ResizeObserver) {
+    new ResizeObserver(function () { ajustarCanvas(); dibujar(escena); }).observe(wrap);
+  } else {
+    window.addEventListener('resize', function () { ajustarCanvas(); dibujar(escena); });
+  }
+  ajustarCanvas();
+  dibujar(escena);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { dibujar(escena); });
+})();
+</script>
+</body>
+</html>
